@@ -2241,7 +2241,7 @@ void HtmlDocVisitor::writeDiaFile(const QCString &fileName, const QCString &relP
 }
 
 void HtmlDocVisitor::writePlantUMLFile(const QCString &fileName, const QCString &relPath,
-                                       const QCString &,const QCString &/* srcFile */,int /* srcLine */)
+                                       const QCString &context,const QCString &/* srcFile */,int /* srcLine */)
 {
   QCString baseName=makeBaseName(fileName);
   QCString outDir = Config_getString(HTML_OUTPUT);
@@ -2249,9 +2249,9 @@ void HtmlDocVisitor::writePlantUMLFile(const QCString &fileName, const QCString 
   if (imgExt=="svg")
   {
     PlantumlManager::instance().generatePlantUMLOutput(fileName,outDir,PlantumlManager::PUML_SVG);
-    //m_t << "<iframe scrolling=\"no\" frameborder=\"0\" src=\"" << relPath << baseName << ".svg" << "\" />\n";
-    //m_t << "<p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p>";
-    //m_t << "</iframe>\n";
+    // Register patching info - will patch after PlantUML generates the file
+    QCString svgName = outDir+"/"+baseName+".svg";
+    PlantumlManager::instance().registerSVGPatch(svgName, relPath, context);
     m_t << "<object type=\"image/svg+xml\" data=\"" << relPath << baseName << ".svg\"></object>\n";
   }
   else

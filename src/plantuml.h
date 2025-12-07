@@ -74,6 +74,23 @@ class PlantumlManager
 
     using FilesMap   = std::map< std::string, StringVector    >;
     using ContentMap = std::map< std::string, PlantumlContent >;
+    
+    /** Patching information for PlantUML SVG files */
+    struct SVGPatchInfo
+    {
+      QCString relPath;
+      QCString context;
+    };
+    
+    /** Register patching information for a PlantUML SVG file.
+     *  @param[in] svgName the full path to the SVG file that will be generated
+     *  @param[in] relPath the relative path for resolving links
+     *  @param[in] context the context for resolving \ref links
+     */
+    void registerSVGPatch(const QCString &svgName, const QCString &relPath, const QCString &context);
+    
+    std::map<std::string, SVGPatchInfo> m_svgPatchInfo; // key: full path to SVG file (public for access from static function)
+    
   private:
     PlantumlManager();
     void insert(const std::string &key,

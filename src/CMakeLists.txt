@@ -294,6 +294,7 @@ add_library(doxymain STATIC
     pagedef.cpp
     perlmodgen.cpp
     plantuml.cpp
+    plantumlsvgpatcher.cpp
     qcstring.cpp
     qhp.cpp
     reflist.cpp

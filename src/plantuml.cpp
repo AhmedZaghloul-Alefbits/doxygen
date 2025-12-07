@@ -25,6 +25,7 @@
 #include "dir.h"
 #include "indexlist.h"
 #include "stringutil.h"
+#include "plantumlsvgpatcher.h"
 
 static std::mutex g_PlantUmlMutex;
 
@@ -351,12 +352,45 @@ static void runPlantumlContent(const PlantumlManager::FilesMap &plantumlFiles,
       file.close();
       Debug::print(Debug::Plantuml,0,"*** PlantumlManager::runPlantumlContent Running Plantuml arguments:{}\n",pumlArguments);
 
-      if (cachedContent == nb.content) continue;
-
-      if ((exitCode=Portable::system(pumlExe.data(),pumlArguments.data(),TRUE))!=0)
+      if (cachedContent != nb.content)
       {
-        err_full(nb.srcFile,nb.srcLine,"Problems running PlantUML. Verify that the command 'java -jar \"{}\" -h' works from the command line. Exit code: {}.",
-            plantumlJarPath,exitCode);
+        if ((exitCode=Portable::system(pumlExe.data(),pumlArguments.data(),TRUE))!=0)
+        {
+          err_full(nb.srcFile,nb.srcLine,"Problems running PlantUML. Verify that the command 'java -jar \"{}\" -h' works from the command line. Exit code: {}.",
+              plantumlJarPath,exitCode);
+        }
+      }
+
+      // Patch SVG files after generation if patching info is registered
+      // This should run regardless of whether content was cached or not
+      if (format == PlantumlManager::PUML_SVG)
+      {
+        auto files_kv = plantumlFiles.find(name);
+        if (files_kv != plantumlFiles.end())
+        {
+          for (const auto &str : files_kv->second)
+          {
+            QCString svgPath = pumlOutDir + str + ".svg";
+            // Normalize path separators for comparison
+            QCString normalizedSvgPath = svgPath;
+            for (size_t i = 0; i < normalizedSvgPath.length(); i++)
+            {
+              if (normalizedSvgPath[i] == '\\') normalizedSvgPath[i] = '/';
+            }
+            // Try both original and normalized paths
+            auto patchIt = PlantumlManager::instance().m_svgPatchInfo.find(svgPath.str());
+            if (patchIt == PlantumlManager::instance().m_svgPatchInfo.end())
+            {
+              patchIt = PlantumlManager::instance().m_svgPatchInfo.find(normalizedSvgPath.str());
+            }
+            if (patchIt != PlantumlManager::instance().m_svgPatchInfo.end())
+            {
+              const PlantumlManager::SVGPatchInfo &patchInfo = patchIt->second;
+              PlantumlSvgPatcher patcher(svgPath, patchInfo.relPath, patchInfo.context);
+              patcher.run();
+            }
+          }
+        }
       }
 
       if ( (format==PlantumlManager::PUML_EPS) && (Config_getBool(USE_PDFLATEX)) )
@@ -384,6 +418,14 @@ static void runPlantumlContent(const PlantumlManager::FilesMap &plantumlFiles,
       }
     }
   }
+}
+
+void PlantumlManager::registerSVGPatch(const QCString &svgName, const QCString &relPath, const QCString &context)
+{
+  SVGPatchInfo info;
+  info.relPath = relPath;
+  info.context = context;
+  m_svgPatchInfo[svgName.str()] = info;
 }
 
 void PlantumlManager::run()
